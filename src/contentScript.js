@@ -1,43 +1,133 @@
-'use strict';
+/**
+ * Path to the offscreen HTML document.
+ * @type {string}
+ */
+const OFFSCREEN_DOCUMENT_PATH = 'offscreen/offscreen.html';
 
-// Content script file will run in the context of web page.
-// With content script you can manipulate the web pages using
-// Document Object Model (DOM).
-// You can also pass information to the parent extension.
+/**
+ * Reason for creating the offscreen document.
+ * @type {string}
+ */
+const OFFSCREEN_REASON = 'USER_MEDIA';
 
-// We execute this script by making an entry in manifest.json file
-// under `content_scripts` property
+/**
+ * Listener for extension installation.
+ */
+chrome.runtime.onInstalled.addListener(handleInstall);
 
-// For more information on Content Scripts,
-// See https://developer.chrome.com/extensions/content_scripts
-
-// Log `title` of current active web page
-const pageTitle = document.head.getElementsByTagName('title')[0].innerHTML;
-console.log(
-  `Page title is: '${pageTitle}' - evaluated by Chrome extension's 'contentScript.js' file`
-);
-
-// Communicate with background file by sending a message
-chrome.runtime.sendMessage(
-  {
-    type: 'GREETINGS',
-    payload: {
-      message: 'Hello, my name is Con. I am from ContentScript.',
-    },
-  },
-  (response) => {
-    console.log(response.message);
+/**
+ * Listener for messages from the extension.
+ * @param {Object} request - The message request.
+ * @param {Object} sender - The sender of the message.
+ * @param {function} sendResponse - Callback function to send a response.
+ */
+chrome.runtime.onMessage.addListener((request) => {
+  switch (request.message.type) {
+    case 'TOGGLE_RECORDING':
+      switch (request.message.data) {
+        case 'START':
+          initateRecordingStart();
+          break;
+        case 'STOP':
+          initateRecordingStop();
+          break;
+      }
+      break;
   }
-);
-
-// Listen for message
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'COUNT') {
-    console.log(`Current count is ${request.payload.count}`);
-  }
-
-  // Send an empty response
-  // See https://github.com/mozilla/webextension-polyfill/issues/130#issuecomment-531531890
-  sendResponse({});
-  return true;
 });
+
+/**
+ * Handles the installation of the extension.
+ */
+async function handleInstall() {
+  console.log('Extension installed...');
+  if (!(await hasDocument())) {
+    // create offscreen document
+    await createOffscreenDocument();
+  }
+}
+
+/**
+ * Sends a message to the offscreen document.
+ * @param {string} type - The type of the message.
+ * @param {Object} data - The data to be sent with the message.
+ */
+async function sendMessageToOffscreenDocument(type, data) {
+  // Create an offscreen document if one doesn't exist yet
+  try {
+    if (!(await hasDocument())) {
+      await createOffscreenDocument();
+    }
+  } finally {
+    // Now that we have an offscreen document, we can dispatch the message.
+    chrome.runtime.sendMessage({
+      message: {
+        type: type,
+        target: 'offscreen',
+        data: data
+      }
+    });
+  }
+}
+
+/**
+ * Initiates the stop recording process.
+ */
+function initateRecordingStop() {
+  console.log('Recording stopped at offscreen');
+  sendMessageToOffscreenDocument('STOP_OFFSCREEN_RECORDING');
+}
+
+/**
+ * Initiates the start recording process.
+ */
+function initateRecordingStart() {
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, ([tab]) => {
+    if (chrome.runtime.lastError || !tab) {
+      console.error('No valid webpage or tab opened');
+      return;
+    }
+
+    chrome.tabs.sendMessage(
+      tab.id,
+      {
+        // Send message to content script of the specific tab to check and/or prompt mic permissions
+        message: { type: 'PROMPT_MICROPHONE_PERMISSION' }
+      },
+      (response) => {
+        // If user allows the mic permissions, we continue the recording procedure.
+        if (response.message.status === 'success') {
+          console.log('Recording started at offscreen');
+          sendMessageToOffscreenDocument('START_OFFSCREEN_RECORDING');
+        }
+      }
+    );
+  });
+}
+
+/**
+ * Checks if there is an offscreen document.
+ * @returns {Promise<boolean>} - Promise that resolves to a boolean indicating if an offscreen document exists.
+ */
+async function hasDocument() {
+  // Check all windows controlled by the service worker if one of them is the offscreen document
+  const matchedClients = await clients.matchAll();
+  for (const client of matchedClients) {
+    if (client.url.endsWith(OFFSCREEN_DOCUMENT_PATH)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Creates the offscreen document.
+ * @returns {Promise<void>} - Promise that resolves when the offscreen document is created.
+ */
+async function createOffscreenDocument() {
+  await chrome.offscreen.createDocument({
+    url: OFFSCREEN_DOCUMENT_PATH,
+    reasons: [OFFSCREEN_REASON],
+    justification: 'To interact with user media'
+  });
+}

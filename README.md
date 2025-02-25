@@ -1,21 +1,25 @@
-# <img src="public/icons/icon_48.png" width="45" align="left"> Webgazer Extension
+# Webgazer Extension
 
-My Chrome Extension
 
-## Features
+```
+contentScript.js: grabs data from the current tab
+gives window data and text @ predicted coordinate to background.js
+if we’re implementing rewinds/replay, gets data from background.js to recreate trail
 
-- Feature 1
-- Feature 2
+background.js: grabs camera data and does actual prediction math
+gives prediction coords to content script
+gives parsed data and results to popup.js and contentscript.js
 
-## Install
+popup.js: gets the results and data from background.js to display to user somehow
 
-[**Chrome** extension]() <!-- TODO: Add chrome extension link inside parenthesis -->
+options.js: needed to grant camera access
+```
 
-## Contribution
+https://www.w3schools.com/Jsref/prop_win_pagexoffset.asp
 
-Suggestions and pull requests are welcomed!.
+^ can use this to get the page coordinate of the gaze dot
 
----
 
-This project was bootstrapped with [Chrome Extension CLI](https://github.com/dutiyesh/chrome-extension-cli)
+TODO:
 
+- make sure th receiving end of chrome messages always exist. 

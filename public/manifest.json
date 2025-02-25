@@ -12,12 +12,21 @@
   "background": {
     "service_worker": "background.js"
   },
+  "options_page": "options.html",
   "action": {
     "default_title": "Webgazer Extension",
     "default_popup": "popup.html"
   },
   "permissions": [
-    "storage"
+    "activeTab",
+    "tabs",
+    "storage",
+    "offscreen",
+    "tabCapture",
+    "desktopCapture"
+  ],
+  "host_permissions": [
+      "<all_urls>"
   ],
   "content_scripts": [
     {
@@ -28,6 +37,12 @@
       "js": [
         "contentScript.js"
       ]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["requestPermissions.html", "requestPermissions.js"],
+      "matches": ["<all_urls>"]
     }
   ]
 }
