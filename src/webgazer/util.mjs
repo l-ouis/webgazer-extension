@@ -3,6 +3,15 @@ import params from './params.mjs';
 
 const util = {};
 
+var boundWidth = 0;
+var boundHeight = 0;
+
+chrome.runtime.onMessage.addListener((data) => {
+    if (data.message.type === "VIEWPORT_SIZE") {
+        boundWidth = data.message.width;
+        boundHeight = data.message.height;
+    }
+});
 
 var resizeWidth = 10;
 var resizeHeight = 6;
@@ -249,8 +258,8 @@ util.bound = function(prediction){
         prediction.x = 0;
     if(prediction.y < 0)
         prediction.y = 0;
-    var w = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
-    var h = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+    var w = this.boundWidth
+    var h = this.boundHeight
     if(prediction.x > w){
         prediction.x = w;
     }

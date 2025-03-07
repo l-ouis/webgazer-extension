@@ -279,7 +279,6 @@ async function loop() {
 
     // Get gaze prediction (ask clm to track; pass the data to the regressor; get back a prediction)
     latestGazeData = getPrediction();
-    console.log(latestGazeData);
     // Count time
     var elapsedTime = performance.now() - clockStart;
 
@@ -314,7 +313,7 @@ async function loop() {
       }
 
       var pred = util.bound({'x':x/len, 'y':y/len});
-      console.log(pred);
+      // chrome.runtime.sendMessage({ type: 'GAZE_PREDICTION', prediction: pred });
 
       if (webgazer.params.storingPoints) {
         drawCoordinates('blue',pred.x,pred.y); //draws the previous predictions
@@ -330,21 +329,16 @@ async function loop() {
         gazeDot.style.display = 'block';
       }
       gazeDot.style.transform = 'translate3d(' + pred.x + 'px,' + pred.y + 'px,0)';
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]) {
-            chrome.tabs.sendMessage(tabs[0].id, {
-                type: 'predictionCoordinates',
-                x: pred.x,
-                y: pred.y,
-            });
-        }
-      });
-      console.log('x: ' + pred.x + ' y: ' + pred.y);
+
     } else {
       gazeDot.style.display = 'none';
     }
 
-    requestAnimationFrame(loop);
+    // requestAnimationFrame does not seem to work in offscreen documents
+    // maybe find an alternative way (search webdocs) but doing this seems to work as well.
+    // requestAnimationFrame(loop);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    loop();
   }
 }
 
@@ -416,16 +410,38 @@ var addMouseEventListeners = function() {
   //third argument set to true so that we get event on 'capture' instead of 'bubbling'
   //this prevents a client using event.stopPropagation() preventing our access to the click
   chrome.runtime.onMessage.addListener(data => {
-    if (data.type === 'click') {
-        clickListener(data);
+    if (data.message.type === 'MOUSE_CLICK') {
+        clickListener(data.message);
     }
   });
   chrome.runtime.onMessage.addListener(data => {
-    if (data.type === 'mousemove') {
-        moveListener(data);
+    if (data.message.type === 'MOUSE_MOVE') {
+        moveListener(data.message);
     }
   });
 };
+
+// This is what we send from contentScript
+
+// document.addEventListener('mousemove', (event) => {
+//   const mouseData = {
+//     type: 'MOUSE_MOVE',
+//     x: event.clientX,
+//     y: event.clientY
+//   };
+//   chrome.runtime.sendMessage({ message: mouseData });
+// });
+
+// document.addEventListener('click', (event) => {
+//   const clickData = {
+//     type: 'MOUSE_CLICK',
+//     x: event.clientX,
+//     y: event.clientY,
+//     button: event.button
+//   };
+//   chrome.runtime.sendMessage({ message: clickData });
+// });
+
 
 /**
  * Remove event listeners for mouse click and move.
@@ -645,7 +661,7 @@ function setUserMediaVariable(){
  * @param {Function} onFail - Callback to call in case it is impossible to find user camera
  * @returns {*}
  */
-webgazer.begin = function(onFail) {
+webgazer.begin = function(stream, onFail) {
   // if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.chrome){
   //   alert("WebGazer works only over https. If you are doing local development, you need to run a local server.");
   // }

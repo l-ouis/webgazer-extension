@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Webgazer Extension",
   "version": "0.1.0",
-  "description": "My Chrome Extension",
+  "description": "extension version of https://github.com/brownhci/WebGazer",
   "icons": {
     "16": "icons/icon_16.png",
     "32": "icons/icon_32.png",
@@ -12,12 +12,12 @@
   "background": {
     "service_worker": "background.js"
   },
-  "options_page": "options.html",
   "action": {
     "default_title": "Webgazer Extension",
     "default_popup": "popup.html"
   },
   "permissions": [
+    "offscreen",
     "activeTab",
     "tabs",
     "storage",
@@ -33,7 +33,6 @@
       "matches": [
         "<all_urls>"
       ],
-      "run_at": "document_idle",
       "js": [
         "contentScript.js"
       ]

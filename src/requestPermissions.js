@@ -2,18 +2,16 @@
  * Requests user permission for microphone access and sends a message to the parent window.
  */
 function getUserPermission() {
-    console.info('Getting user permission for microphone access...');
+    console.info('Getting user permission for camera access...');
   
     navigator.mediaDevices
-      .getUserMedia({ audio: true })
+      .getUserMedia({ audio: false, video: { width: 1280, height: 720 } })
       .then((response) => {
         if (response.id !== null && response.id !== undefined) {
-          console.log('Microphone access granted');
-          // Post a message to the parent window indicating successful permission
+          console.log('Camera access granted');
           window.parent.postMessage({ type: 'permissionsGranted' }, '*');
           return;
         }
-        // Post a message to the parent window indicating failed permission
         window.parent.postMessage(
           {
             type: 'permissionsFailed'
@@ -22,15 +20,13 @@ function getUserPermission() {
         );
       })
       .catch((error) => {
-        console.warn('Error requesting microphone permission: ', error);
+        console.warn('Error requesting camera permission: ', error);
         if (error.message === 'Permission denied') {
-          // Show an alert if permission is denied
           window.alert(
-            'Please allow microphone access. Highlight uses your microphone to record audio during meetings.'
+            'Webgazer requires camera access to work.'
           );
         }
   
-        // Post a message to the parent window indicating failed permission with an optional error message
         window.parent.postMessage(
           {
             type: 'permissionsFailed',
@@ -41,5 +37,4 @@ function getUserPermission() {
       });
   }
   
-  // Call the function to request microphone permission
-  getUserPermission();
+getUserPermission();

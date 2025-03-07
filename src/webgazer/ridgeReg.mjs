@@ -41,7 +41,6 @@ reg.RidgeReg.prototype.predict = function(eyesObj) {
   var trailY = [];
   var trailFeat = [];
   for (var i = 0; i < this.trailDataWindow; i++) { // 20
-    console.log(this.trailDataWindow);
     if (this.trailTimes.get(i) > acceptTime) {
       trailX.push(this.screenXTrailArray.get(i));
       trailY.push(this.screenYTrailArray.get(i));
@@ -55,12 +54,6 @@ reg.RidgeReg.prototype.predict = function(eyesObj) {
 
   var coefficientsX = util_regression.ridge(screenXArray, eyeFeatures, this.ridgeParameter);
   var coefficientsY = util_regression.ridge(screenYArray, eyeFeatures, this.ridgeParameter);
-
-  console.log("ScreenXArray: ", screenXArray);
-  console.log("ScreenYArray: ", screenYArray);
-  console.log("EyeFeatures: ", eyeFeatures);
-  console.log("CoefficientsX: ", coefficientsX);
-  console.log("CoefficientsY: ", coefficientsY);
 
   var eyeFeats = util.getEyeFeats(eyesObj);
   var predictedX = 0;

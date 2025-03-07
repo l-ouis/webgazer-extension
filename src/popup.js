@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const sendMessageToBackground = (message) => {
     chrome.runtime.sendMessage({
       message: {
-        type: 'TOGGLE_RECORDING',
+        type: 'TOGGLE_WEBGAZER',
         target: 'background',
         data: message
       }

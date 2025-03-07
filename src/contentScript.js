@@ -1,133 +1,182 @@
-/**
- * Path to the offscreen HTML document.
- * @type {string}
- */
-const OFFSCREEN_DOCUMENT_PATH = 'offscreen/offscreen.html';
 
-/**
- * Reason for creating the offscreen document.
- * @type {string}
- */
-const OFFSCREEN_REASON = 'USER_MEDIA';
 
-/**
- * Listener for extension installation.
- */
-chrome.runtime.onInstalled.addListener(handleInstall);
-
-/**
- * Listener for messages from the extension.
- * @param {Object} request - The message request.
- * @param {Object} sender - The sender of the message.
- * @param {function} sendResponse - Callback function to send a response.
- */
-chrome.runtime.onMessage.addListener((request) => {
+// Handle camera permission with iframe
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.message.type) {
-    case 'TOGGLE_RECORDING':
-      switch (request.message.data) {
-        case 'START':
-          initateRecordingStart();
-          break;
-        case 'STOP':
-          initateRecordingStop();
-          break;
-      }
+    case 'PROMPT_CAMERA_PERMISSION':
+      checkCameraPermissions()
+        .then(() => {
+          sendResponse({ message: { status: 'success' } });
+        })
+        .catch(() => {
+          promptCameraPermissions();
+          const iframe = document.getElementById('PERMISSION_IFRAME_ID');
+          window.addEventListener('message', (event) => {
+            if (event.source === iframe.contentWindow && event.data) {
+              if (event.data.type === 'permissionsGranted') {
+                sendResponse({
+                  message: { status: 'success' }
+                });
+              } else {
+                sendResponse({
+                  message: {
+                    status: 'failure'
+                  }
+                });
+              }
+              document.body.removeChild(iframe);
+            }
+          });
+        });
+      break;
+
+    default:
+      // Do nothing for other message types
       break;
   }
+  return true;
 });
 
-/**
- * Handles the installation of the extension.
- */
-async function handleInstall() {
-  console.log('Extension installed...');
-  if (!(await hasDocument())) {
-    // create offscreen document
-    await createOffscreenDocument();
-  }
-}
-
-/**
- * Sends a message to the offscreen document.
- * @param {string} type - The type of the message.
- * @param {Object} data - The data to be sent with the message.
- */
-async function sendMessageToOffscreenDocument(type, data) {
-  // Create an offscreen document if one doesn't exist yet
-  try {
-    if (!(await hasDocument())) {
-      await createOffscreenDocument();
-    }
-  } finally {
-    // Now that we have an offscreen document, we can dispatch the message.
-    chrome.runtime.sendMessage({
-      message: {
-        type: type,
-        target: 'offscreen',
-        data: data
-      }
-    });
-  }
-}
-
-/**
- * Initiates the stop recording process.
- */
-function initateRecordingStop() {
-  console.log('Recording stopped at offscreen');
-  sendMessageToOffscreenDocument('STOP_OFFSCREEN_RECORDING');
-}
-
-/**
- * Initiates the start recording process.
- */
-function initateRecordingStart() {
-  chrome.tabs.query({ active: true, lastFocusedWindow: true }, ([tab]) => {
-    if (chrome.runtime.lastError || !tab) {
-      console.error('No valid webpage or tab opened');
-      return;
-    }
-
-    chrome.tabs.sendMessage(
-      tab.id,
+function checkCameraPermissions() {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
       {
-        // Send message to content script of the specific tab to check and/or prompt mic permissions
-        message: { type: 'PROMPT_MICROPHONE_PERMISSION' }
+        message: {
+          type: 'CHECK_PERMISSIONS',
+          target: 'offscreen'
+        }
       },
       (response) => {
-        // If user allows the mic permissions, we continue the recording procedure.
         if (response.message.status === 'success') {
-          console.log('Recording started at offscreen');
-          sendMessageToOffscreenDocument('START_OFFSCREEN_RECORDING');
+          resolve();
+        } else {
+          reject(response.message.data);
         }
       }
     );
   });
 }
 
-/**
- * Checks if there is an offscreen document.
- * @returns {Promise<boolean>} - Promise that resolves to a boolean indicating if an offscreen document exists.
- */
-async function hasDocument() {
-  // Check all windows controlled by the service worker if one of them is the offscreen document
-  const matchedClients = await clients.matchAll();
-  for (const client of matchedClients) {
-    if (client.url.endsWith(OFFSCREEN_DOCUMENT_PATH)) {
-      return true;
-    }
-  }
-  return false;
+
+function promptCameraPermissions() {
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('hidden', 'hidden');
+  iframe.setAttribute('allow', 'camera');
+  iframe.setAttribute('id', 'PERMISSION_IFRAME_ID');
+  iframe.src = chrome.runtime.getURL('requestPermissions.html');
+  document.body.appendChild(iframe);
 }
 
-/**
- * Creates the offscreen document.
- * @returns {Promise<void>} - Promise that resolves when the offscreen document is created.
- */
-async function createOffscreenDocument() {
-  await chrome.offscreen.createDocument({
-    url: OFFSCREEN_DOCUMENT_PATH,
-    reasons: [OFFSCREEN_REASON],
-    justification: 'To interact with user media'
+
+// send mouse data from current pages to background.js
+document.addEventListener('mousemove', (event) => {
+  const mouseData = {
+    type: 'MOUSE_MOVE',
+    clientX: event.clientX,
+    clientY: event.clientY
+  };
+  chrome.runtime.sendMessage({ message: mouseData });
+});
+
+document.addEventListener('click', (event) => {
+  const clickData = {
+    type: 'MOUSE_CLICK',
+    clientX: event.clientX,
+    clientY: event.clientY
+  };
+  chrome.runtime.sendMessage({ message: clickData });
+});
+
+// Update viewport changes every so often to bound gaze prediction
+setInterval(() => {
+  const viewportData = {
+    type: 'VIEWPORT_SIZE',
+    width: Math.max(document.documentElement.clientWidth, window.innerWidth || 0),
+    height: Math.max(document.documentElement.clientHeight, window.innerHeight || 0)
+  };
+  chrome.runtime.sendMessage({ message: viewportData });
+}, 2000);
+
+
+
+// maps current text elements and highlights those that are gazed
+// (demo / test code)
+const visibleTextElements = new Map();
+const gazedTextElements = new Map();
+
+function updateVisibleTextElements() {
+  const elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, span');
+  elements.forEach((element) => {
+    if (element.offsetParent !== null) {
+      const uniqueId = generateUniqueId(element.innerText);
+      visibleTextElements.set(uniqueId, element);
+      gazedTextElements.set(uniqueId, 0);
+    }
   });
 }
+
+function updateGazedVisibleTextElement(xPos, yPos) {
+  const offsetX = window.scrollX || document.documentElement.scrollLeft;
+  const offsetY = window.scrollY || document.documentElement.scrollTop;
+  const adjustedX = xPos + offsetX;
+  const adjustedY = yPos + offsetY;
+
+  visibleTextElements.forEach((element, uniqueId) => {
+    const rect = element.getBoundingClientRect();
+    const elementX = rect.left + offsetX;
+    const elementY = rect.top + offsetY;
+    const elementWidth = rect.width;
+    const elementHeight = rect.height;
+
+    if (
+      adjustedX >= elementX &&
+      adjustedX <= elementX + elementWidth &&
+      adjustedY >= elementY &&
+      adjustedY <= elementY + elementHeight
+    ) {
+      gazedTextElements.set(uniqueId, gazedTextElements.get(uniqueId) + 1);
+      element.style.backgroundColor = 'yellow';
+      if (gazedTextElements.get(uniqueId) > 3) {
+        
+      }
+    }
+  });
+}
+
+function generateUniqueId(text) {
+  return 'id-' + btoa(encodeURIComponent(text)).substring(0, 9);
+}
+
+updateVisibleTextElements();
+window.addEventListener('resize', updateVisibleTextElements);
+window.addEventListener('scroll', updateVisibleTextElements);
+
+
+// handle gaze dot
+const gazeDot = document.createElement('div');
+
+gazeDot.style.position = 'absolute';
+gazeDot.style.width = '10px';
+gazeDot.style.height = '10px';
+gazeDot.style.zIndex = 99999;
+gazeDot.style.backgroundColor = 'red';
+gazeDot.style.pointerEvents = 'none';
+gazeDot.style.left = '-5px';
+gazeDot.style.top  = '-5px';
+document.body.appendChild(gazeDot);
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'GAZE_PREDICTION') {
+    const pred = message.prediction;
+    const boundedX = Math.max(0, Math.min(pred.x, window.innerWidth - gazeDot.offsetWidth));
+    const boundedY = Math.max(0, Math.min(pred.y, window.innerHeight - gazeDot.offsetHeight));
+    updateGazedVisibleTextElement(boundedX, boundedY);
+    gazeDot.style.transform = 'translate3d(' + pred.x + 'px,' + pred.y + 'px,0)';
+    const offsetX = window.scrollX || document.documentElement.scrollLeft;
+    const offsetY = window.scrollY || document.documentElement.scrollTop;
+    gazeDot.style.transform = 'translate3d(' + (boundedX + offsetX) + 'px,' + (boundedY + offsetY) + 'px,0)';
+
+  }
+  return true;
+});
+

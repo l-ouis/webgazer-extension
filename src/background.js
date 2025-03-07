@@ -1,29 +1,11 @@
-/**
- * Path to the offscreen HTML document.
- * @type {string}
- */
-const OFFSCREEN_DOCUMENT_PATH = 'offscreen/offscreen.html';
-
-/**
- * Reason for creating the offscreen document.
- * @type {string}
- */
+const OFFSCREEN_DOCUMENT_PATH = 'offscreen.html';
 const OFFSCREEN_REASON = 'USER_MEDIA';
 
-/**
- * Listener for extension installation.
- */
 chrome.runtime.onInstalled.addListener(handleInstall);
 
-/**
- * Listener for messages from the extension.
- * @param {Object} request - The message request.
- * @param {Object} sender - The sender of the message.
- * @param {function} sendResponse - Callback function to send a response.
- */
 chrome.runtime.onMessage.addListener((request) => {
   switch (request.message.type) {
-    case 'TOGGLE_RECORDING':
+    case 'TOGGLE_WEBGAZER':
       switch (request.message.data) {
         case 'START':
           initateRecordingStart();
@@ -36,30 +18,19 @@ chrome.runtime.onMessage.addListener((request) => {
   }
 });
 
-/**
- * Handles the installation of the extension.
- */
 async function handleInstall() {
-  console.log('Extension installed...');
+  console.log('extension installed');
   if (!(await hasDocument())) {
-    // create offscreen document
     await createOffscreenDocument();
   }
 }
 
-/**
- * Sends a message to the offscreen document.
- * @param {string} type - The type of the message.
- * @param {Object} data - The data to be sent with the message.
- */
 async function sendMessageToOffscreenDocument(type, data) {
-  // Create an offscreen document if one doesn't exist yet
   try {
     if (!(await hasDocument())) {
       await createOffscreenDocument();
     }
   } finally {
-    // Now that we have an offscreen document, we can dispatch the message.
     chrome.runtime.sendMessage({
       message: {
         type: type,
@@ -70,17 +41,11 @@ async function sendMessageToOffscreenDocument(type, data) {
   }
 }
 
-/**
- * Initiates the stop recording process.
- */
 function initateRecordingStop() {
-  console.log('Recording stopped at offscreen');
-  sendMessageToOffscreenDocument('STOP_OFFSCREEN_RECORDING');
+  console.log('Webgazer stopped at offscreen');
+  sendMessageToOffscreenDocument('STOP_WEBGAZER');
 }
 
-/**
- * Initiates the start recording process.
- */
 function initateRecordingStart() {
   chrome.tabs.query({ active: true, lastFocusedWindow: true }, ([tab]) => {
     if (chrome.runtime.lastError || !tab) {
@@ -91,14 +56,12 @@ function initateRecordingStart() {
     chrome.tabs.sendMessage(
       tab.id,
       {
-        // Send message to content script of the specific tab to check and/or prompt mic permissions
-        message: { type: 'PROMPT_MICROPHONE_PERMISSION' }
+        message: { type: 'PROMPT_CAMERA_PERMISSION' }
       },
       (response) => {
-        // If user allows the mic permissions, we continue the recording procedure.
         if (response.message.status === 'success') {
-          console.log('Recording started at offscreen');
-          sendMessageToOffscreenDocument('START_OFFSCREEN_RECORDING');
+          console.log('WebGazer started at offscreen');
+          sendMessageToOffscreenDocument('START_WEBGAZER');
         }
       }
     );
@@ -131,3 +94,13 @@ async function createOffscreenDocument() {
     justification: 'To interact with user media'
   });
 }
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "GAZE_PREDICTION") {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      if (tabs.length > 0) {
+        chrome.tabs.sendMessage(tabs[0].id, { type: "GAZE_PREDICTION", prediction: message.prediction });
+      }
+    });
+  }
+});
