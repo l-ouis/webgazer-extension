@@ -21,18 +21,19 @@
     "activeTab",
     "tabs",
     "storage",
-    "offscreen",
+    "scripting",
     "tabCapture",
     "desktopCapture"
   ],
   "host_permissions": [
-      "<all_urls>"
+    "<all_urls>"
   ],
   "content_scripts": [
     {
       "matches": [
         "<all_urls>"
       ],
+      "run_at": "document_start",
       "js": [
         "contentScript.js"
       ]
@@ -40,8 +41,13 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["requestPermissions.html", "requestPermissions.js"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "requestPermissions.html",
+        "requestPermissions.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

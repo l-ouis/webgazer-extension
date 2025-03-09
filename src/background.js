@@ -1,5 +1,8 @@
+import * as utils from './tabManager';
+
 const OFFSCREEN_DOCUMENT_PATH = 'offscreen.html';
 const OFFSCREEN_REASON = 'USER_MEDIA';
+const tabManager = new utils.TabManager();
 
 chrome.runtime.onInstalled.addListener(handleInstall);
 
@@ -20,6 +23,7 @@ chrome.runtime.onMessage.addListener((request) => {
 
 async function handleInstall() {
   console.log('extension installed');
+  initiateTabManager();
   if (!(await hasDocument())) {
     await createOffscreenDocument();
   }
@@ -104,3 +108,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
   }
 });
+
+
+function initiateTabManager() {
+  // Listen for tab creation
+  chrome.tabs.onCreated.addListener((tab) => {
+      tabManager.addTab(tab.id);
+  });
+
+  // Listen for tab removal
+  chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
+      // Mark tab as closed
+      await tabManager.closeTab(tabId);
+
+      let latestPage = tabManager.getTab(tabId).latestPage;
+      let url = tabManager.getTab(tabId).latestPage.url;
+      let close_time = new Date().toISOString();
+
+      // TODO: this is a good time to send the data about this just-closed tab to the server
+  });
+  
+  // Listen for tab activation (focus)
+  chrome.tabs.onActivated.addListener(async (activeInfo) => {
+      const { tabId } = activeInfo;
+      // Mark the activated tab as focused
+      tabManager.focusTab(tabId);
+  });
+
+  // Listen for URL changes in tabs
+  chrome.tabs.onUpdated.addListener(async function (tabId, changeInfo, tab) {
+      // console.log("onUpdated", tabId, changeInfo, tab);  
+      if (changeInfo.status === "complete") {
+          const newTabUrl = changeInfo.url || tab.url;
+          const title = tab.title;
+          // Update TabManager with the new URL
+          tabManager.updateTabUrl(tabId, newTabUrl, title);
+      }
+  });
+
+  // Log all metadata periodically (for debugging purposes)
+  setInterval(() => {
+      // console.log("Current Tab Metadata:", tabManager.getAllTabs());
+  }, 10000);
+}
