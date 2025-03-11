@@ -43,7 +43,8 @@
     {
       "resources": [
         "requestPermissions.html",
-        "requestPermissions.js"
+        "requestPermissions.js",
+        "FogOfWar.js"
       ],
       "matches": [
         "<all_urls>"

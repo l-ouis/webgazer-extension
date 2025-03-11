@@ -1,3 +1,7 @@
+import { FogOfWar } from './fogOfWar.js';
+
+const fogOfWar = new FogOfWar();
+
 // ======================
 // 1. CAMERA PERMISSION HANDLING
 // ======================
@@ -352,7 +356,10 @@ gazeDot.style.backgroundColor = 'red';
 gazeDot.style.pointerEvents = 'none';
 gazeDot.style.left = '-5px';
 gazeDot.style.top  = '-5px';
-document.body.appendChild(gazeDot);
+gazeDot.style.overflow = 'hidden';
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.appendChild(gazeDot);
+}, {once: true});
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GAZE_PREDICTION') {
@@ -366,7 +373,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Calculate adjusted positions taking scroll into account
     const offsetX = window.scrollX || document.documentElement.scrollLeft;
     const offsetY = window.scrollY || document.documentElement.scrollTop;
+    fogOfWar.addPrediction({ x: boundedX + offsetX, y: boundedY + offsetY });
     gazeDot.style.transform = `translate3d(${boundedX + offsetX}px, ${boundedY + offsetY}px, 0)`;
   }
   return true;
 });
+
+// ======================
+// 6. GAZE DOT FOG OF WAR (Experimental)
+// ======================
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'TOGGLE_FOG') {
+    if (message.data === 'STOP') {
+      fogOfWar.disable();
+    }
+    else if (message.data === 'START') {
+      fogOfWar.enable();
+    }
+  }
+  return true;
+});
+

@@ -18,6 +18,25 @@ chrome.runtime.onMessage.addListener((request) => {
           break;
       }
       break;
+    case 'TOGGLE_FOG':
+      switch (request.message.data) {
+        case 'START':
+          console.log("Start fog");
+          chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+            if (tabs.length > 0) {
+              chrome.tabs.sendMessage(tabs[0].id, { type: "TOGGLE_FOG", data: "START" });
+            }
+          });
+          break;
+        case 'STOP':
+          chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+            if (tabs.length > 0) {
+              chrome.tabs.sendMessage(tabs[0].id, { type: "TOGGLE_FOG", data: "STOP" });
+            }
+          });
+          break;
+      break;
+      }
   }
 });
 

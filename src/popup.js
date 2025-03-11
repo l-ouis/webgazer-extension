@@ -1,25 +1,32 @@
 document.addEventListener('DOMContentLoaded', function () {
   const startButton = document.getElementById('start-button');
   const stopButton = document.getElementById('stop-button');
+  const startFogButton = document.getElementById('start-fog-button');
+  const stopFogButton = document.getElementById('stop-fog-button');
 
-  // Function to send a message to the background script
-  const sendMessageToBackground = (message) => {
+  const sendMessageToBackground = (type, data) => {
     chrome.runtime.sendMessage({
       message: {
-        type: 'TOGGLE_WEBGAZER',
+        type: type,
         target: 'background',
-        data: message
+        data: data
       }
     });
   };
 
-  // Add a click event listener to the start button
   startButton.addEventListener('click', function () {
-    sendMessageToBackground('START');
+    sendMessageToBackground('TOGGLE_WEBGAZER', 'START');
   });
 
-  // Add a click event listener to the stop button
   stopButton.addEventListener('click', function () {
-    sendMessageToBackground('STOP');
+    sendMessageToBackground('TOGGLE_WEBGAZER', 'STOP');
+  });
+
+  startFogButton.addEventListener('click', function () {
+    sendMessageToBackground('TOGGLE_FOG', 'START');
+  });
+
+  stopFogButton.addEventListener('click', function () {
+    sendMessageToBackground('TOGGLE_FOG', 'STOP');
   });
 });
