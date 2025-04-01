@@ -23,7 +23,8 @@
     "storage",
     "scripting",
     "tabCapture",
-    "desktopCapture"
+    "desktopCapture",
+    "history"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -44,7 +45,9 @@
       "resources": [
         "requestPermissions.html",
         "requestPermissions.js",
-        "FogOfWar.js"
+        "FogOfWar.js",
+        "history.html",
+        "src/history.js"
       ],
       "matches": [
         "<all_urls>"

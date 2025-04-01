@@ -14,6 +14,7 @@ const config = (env, argv) =>
       background: PATHS.src + '/background.js',
       offscreen: PATHS.src + '/offscreen.js',
       requestPermissions: PATHS.src + '/requestPermissions.js',
+      history: PATHS.src + '/history.js',
     },
     devtool: argv.mode === 'production' ? false : 'source-map',
   });
